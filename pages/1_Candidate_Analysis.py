@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-from func.pdf_processing import extract_text_from_pdf
-from func.genai_analysis import analyze_candidate_skills
+from datetime import datetime
+from func.pdf_processing import extract_text_from_pdf, generate_pdf
+from func.genai_analysis import analyze_candidate_skills, extract_scores_from_analysis, weighted_score
 
 with st.sidebar:
     st.markdown("---")
@@ -31,9 +32,9 @@ weights = {
 
 # 4. **Determine Suitability Degree Function**
 def determine_suitability(final_score):
-    if final_score >= 8:
+    if final_score >= 65:
         return "Highly Suitable"
-    elif 5 <= final_score < 8:
+    elif 50 <= final_score < 65:
         return "Moderately Suitable"
     else:
         return "Less Suitable"
@@ -45,6 +46,8 @@ if 'results' not in st.session_state:
 if 'improvement_recs' not in st.session_state:
     st.session_state.improvement_recs = []
 
+results_df = pd.DataFrame({})
+
 # 5. **Analyze Candidates and Display Results**
 if st.button("Analyze Candidates"):
     st.session_state.results.clear()  # Clear previous results to avoid duplication issues
@@ -55,23 +58,35 @@ if st.button("Analyze Candidates"):
         # Analyze candidate skills and job match
         skill_analysis = analyze_candidate_skills(profile_text, job_spec)
 
-        # # Extract individual scores from the analysis text
-        # skills_score, experience_score, soft_skills_score = extract_scores_from_analysis(skill_analysis)
+        # Extract individual scores from the analysis text
+        skills_score, experience_score, soft_skills_score = extract_scores_from_analysis(skill_analysis)
 
-        # # Calculate final weighted score
-        # final_score = weighted_score(skills_score, experience_score, soft_skills_score, weights)
+        # Calculate final weighted score
+        final_score = weighted_score(skills_score, experience_score, soft_skills_score, weights)
 
-        # # Determine suitability degree
-        # suitability = determine_suitability(final_score)
+        # Determine suitability degree
+        suitability = determine_suitability(final_score)
 
         st.session_state.results.append({
             "Candidate": uploaded_file.name,
-            "Skills Analysis": skill_analysis#,
-            # "Final Score": final_score,
-            # "Suitability": suitability
+            "Skills Analysis": skill_analysis,
+            "Final Score": final_score,
+            "Suitability": suitability
         })
 
     # Display results in a table
     results_df = pd.DataFrame(st.session_state.results)
     st.subheader("Candidate Analysis Results")
-    st.write(results_df)
+
+# st.write(results_df)
+for index, row in results_df.iterrows():
+    st.write(row)
+    # Save PDF to an in-memory buffer
+    pdf_output = generate_pdf(row['Skills Analysis'])
+    st.download_button(
+        label=f"Download PDF for {row['Candidate']} Analysis",
+        data=pdf_output,
+        file_name=f"{row['Candidate']}_details.pdf",
+        mime="application/pdf"
+    )
+    st.markdown("---") # Separator for better visualization
