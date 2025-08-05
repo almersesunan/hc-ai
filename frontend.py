@@ -4,7 +4,6 @@ import streamlit as st
 API_BASE_URL = "http://localhost:8000"
 API_URL_CANDIDATE = f"{API_BASE_URL}/candidate_analysis/"
 
-
 st.set_page_config(
     page_title="AI-Powered Human Capital System",
     page_icon="🧑",
@@ -13,13 +12,9 @@ st.set_page_config(
 )
 
 with st.sidebar:
-    st.title("📃 Menu")
-    st.button("Home")
-    st.button("Candidate Analysis")
-
     st.markdown("---")
     st.caption("AI-Powered Human Capital System")
-    st.caption("© 2025 HCIS \n Sinar Mas Land")
+    st.caption("© 2025 HCIS - Sinar Mas Land")
 
 st.title('AI-Powered Human Capital System')
 st.markdown("""
