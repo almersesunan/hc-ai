@@ -59,7 +59,7 @@ if st.button("Analyze Candidates"):
         skill_analysis = analyze_candidate_skills(profile_text, job_spec)
 
         # Extract individual scores from the analysis text
-        skills_score, experience_score, soft_skills_score = extract_scores_from_analysis(skill_analysis)
+        candidate_name, skills_score, experience_score, soft_skills_score, conclusion = extract_scores_from_analysis(skill_analysis)
 
         # Calculate final weighted score
         final_score = weighted_score(skills_score, experience_score, soft_skills_score, weights)
@@ -68,8 +68,9 @@ if st.button("Analyze Candidates"):
         suitability = determine_suitability(final_score)
 
         st.session_state.results.append({
-            "Candidate": uploaded_file.name,
+            "Candidate": candidate_name,
             "Skills Analysis": skill_analysis,
+            "Conclusion": conclusion,
             "Final Score": final_score,
             "Suitability": suitability
         })
@@ -79,14 +80,20 @@ if st.button("Analyze Candidates"):
     st.subheader("Candidate Analysis Results")
 
 # st.write(results_df)
-for index, row in results_df.iterrows():
-    st.write(row)
-    # Save PDF to an in-memory buffer
-    pdf_output = generate_pdf(row['Skills Analysis'])
-    st.download_button(
-        label=f"Download PDF for {row['Candidate']} Analysis",
-        data=pdf_output,
-        file_name=f"{row['Candidate']}_details.pdf",
-        mime="application/pdf"
-    )
-    st.markdown("---") # Separator for better visualization
+@st.fragment
+def download_section():
+    for index, row in results_df.iterrows():
+        # Prepare a copy of the row without 'Skills Analysis'
+        display_row = row.drop(labels=['Skills Analysis'])
+        st.write(display_row)
+        # Save PDF to an in-memory buffer
+        pdf_output = generate_pdf(row['Skills Analysis'])
+        st.download_button(
+            label=f"Download PDF for {row['Candidate']} Analysis",
+            data=pdf_output,
+            file_name=f"{row['Candidate']}_Analysis.pdf",
+            mime="application/pdf"
+        )
+        st.markdown("---") # Separator for better visualization
+
+download_section()

@@ -2,9 +2,14 @@
 
 import google.generativeai as genai
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")
 
 # Initialize the GeminiAPI
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=api_key)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 def analyze_candidate_skills(cv_text, job_pos):
@@ -21,14 +26,15 @@ def analyze_candidate_skills(cv_text, job_pos):
     - CUSTOMER DRIVEN: Anticipates and adapts to customer's needs. (Weight 16)
     - CONTINUOUS IMPROVEMENT: Identify improvement opportunity to streamlines function's work process. (Weight 36)            
     
-    From Core Competencies Parameter result, calculate scoring weight into these 3 categories with Output format:
+    From Core Competencies Parameter result, calculate scoring weight into these 3 categories with scoring value between 0-100 
+    Output format:
     'Skills Score: X, Experience Score: Y, Soft Skills Score: Z'
 
     Result must includes this Format text below as an output
-    Candidate:
-    Position:
-    Conclusion:
-    Analysis:
+    Candidate Name: 
+    Position: 
+    Conclusion: 
+    Analysis: 
     Skills Score: 
     Experience Score: 
     Soft Skills Score: 
@@ -36,11 +42,10 @@ def analyze_candidate_skills(cv_text, job_pos):
     Notes:
     - Address the candidate using neutral gender
     - if there is a mention of willingness to work in certain location, do not measure it as a parameter on analysis
-    - if the person does not recommended for the job position, make a recommendation or alternative for suitable job position.
-    - make a recommendation on what training should the candidate take to be qualify for taking the job
-    - the text result must be using Unicode font that compatible to Times New Roman Font
-    - the output should not contain any table
-    - lastly, recommend insightful and targeted interview questions based on your assessment.
+    - Provide a conclusion based on the analysis, and if the candidate is not suitable for the job position, recommend an alternative job position that fits the candidate's profile.
+    - Recommend training that the candidate should take to qualify for the job position.
+    - The output must be in a format that is compatible with Times New Roman font, and it should not contain any tables.
+    - Finally, suggest insightful and targeted interview questions based on your assessment.
     
     """)
 
@@ -48,14 +53,21 @@ def analyze_candidate_skills(cv_text, job_pos):
 
 def extract_scores_from_analysis(analysis_text):
     # Initialize scores to 0 in case of failures
+    candidate_name = "No Name"
     skills_score = 0
     experience_score = 0
     soft_skills_score = 0
+    conclusion = "No Conclusion"
 
     # Debugging: Log the analysis text to verify if it contains scores
     print("Analysis Text for Scoring:", analysis_text)
 
     # Extract scores using regex
+    try:
+        candidate_name = str(re.search(r"Candidate Name:\s*(.+)", analysis_text).group(1))
+    except AttributeError:
+        print("Candidate Name not found in analysis text.")
+    
     try:
         skills_score = int(re.search(r"Skills Score:\s*(\d+)", analysis_text).group(1))
     except AttributeError:
@@ -71,7 +83,12 @@ def extract_scores_from_analysis(analysis_text):
     except AttributeError:
         print("Soft Skills Score not found in analysis text.")
 
-    return skills_score, experience_score, soft_skills_score
+    try:
+        conclusion = str(re.search(r"Conclusion:\s*(.+)", analysis_text).group(1))
+    except AttributeError:
+        print("Conclusion not found in analysis text.")
+
+    return candidate_name, skills_score, experience_score, soft_skills_score, conclusion
 
 def weighted_score(skills_score, experience_score, soft_skills_score, weights):
     # Calculate weighted score based on provided weights
