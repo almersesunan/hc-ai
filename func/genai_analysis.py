@@ -4,7 +4,7 @@ import google.generativeai as genai
 import re
 
 # Initialize the GeminiAPI
-genai.configure(api_key='AIzaSyCFxqFcV15_eBk3_k-t42jqzyKqA_X0bMo')
+genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 def analyze_candidate_skills(cv_text, job_pos):
