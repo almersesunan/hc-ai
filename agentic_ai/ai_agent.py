@@ -1,9 +1,24 @@
-
+import os
+import json
+import requests
+from typing import Annotated, List, TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 class GraphState(TypedDict):
   messages: Annotated[List[BaseMessage], add_messages]
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.graph import StateGraph, END
+from dotenv import load_dotenv
+
+load_dotenv()
+gemini_key = os.getenv("GEMINI_API_KEY")
+github_key = os.getenv("GITHUB_API_KEY")  
+GITHUB_API_URL = "https://api.github.com"
+
+try:
+  llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=gemini_key)
+except Exception as e:
+  raise ValueError(f"❌ Failed to initialize Gemini LLM: {e}")
   
 
 def route(state: GraphState) -> str:
@@ -38,7 +53,7 @@ def chat_agent(state: GraphState) -> GraphState:
 
 def github_agent(state: GraphState) -> GraphState:
     user_msg = state["messages"][-1].content
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    headers = {"Authorization": f"Bearer {github_key}"}
 
     try:
         # Classify intent
@@ -98,6 +113,44 @@ def github_agent(state: GraphState) -> GraphState:
         response_text = f"⚠️ Error processing GitHub request: {e}"
 
     return {"messages": state["messages"] + [AIMessage(content=response_text)]}
+
+def summarize_conversation(messages: List[BaseMessage]) -> str:
+    conversation_text = "\n".join([msg.content for msg in messages])
+    summary_prompt = (
+        "You are a helpful assistant. Summarize the following conversation in a concise manner:\n"
+        f"{conversation_text}\n"
+        "Summarize in 2-3 sentences."
+    )
+    try:
+        response = llm.invoke([HumanMessage(content=summary_prompt)])
+        return response.content
+    except Exception as e:
+        return f"⚠️ Failed to summarize conversation: {e}"
+    
+CHECKPOINT_DIR = "./checkpoints"
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
+def save_checkpoint(thread_id, state):
+    try:
+        if len(state["messages"]) > 8:
+            summarized = summarize_conversation(state["messages"])
+            state["messages"] = [HumanMessage(content=f"Summary of previous conversation: {summarized}")]
+        with open(os.path.join(CHECKPOINT_DIR, f"{thread_id}.json"), "w") as f:
+            json.dump([msg.dict() for msg in state["messages"]], f)
+    except Exception as e:
+        print(f"⚠️ Failed to save checkpoint: {e}")
+
+def load_checkpoint(thread_id):
+    path = os.path.join(CHECKPOINT_DIR, f"{thread_id}.json")
+    try:
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                msgs = json.load(f)
+                messages = [HumanMessage(**m) if m["type"] == "human" else AIMessage(**m) for m in msgs]
+                return {"messages": messages}
+    except Exception as e:
+        print(f"⚠️ Failed to load checkpoint: {e}")
+    return {"messages": []}
 
 builder = StateGraph(GraphState)
 builder.add_node("chat_agent", chat_agent)
