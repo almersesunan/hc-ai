@@ -9,6 +9,7 @@ class GraphState(TypedDict):
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
+from agentic_ai.text_to_sql import write_query, execute_query, generate_answer
 
 load_dotenv()
 gemini_key = os.getenv("GEMINI_API_KEY")
@@ -26,9 +27,9 @@ def route(state: GraphState) -> str:
     system_prompt = (
         "You are a routing assistant. Classify the user's message as either:\n"
         "- 'github_agent': if it is about repositories, pull requests, GitHub-related tasks\n"
-        "- 'chat_agent': for anything else (general conversation, non-GitHub questions)\n"
-        "- 'leave_agent': if it is about leave request\n"
-        "Respond with only the label: 'github_agent', 'chat_agent', 'leave_agent'."
+        "- 'chat_agent': for anything else (general conversation, non-Classify questions)\n"
+        "- 'nl2sql_agent': if it is about database, SQL, data analysis, or asking for data from a database\n"
+        "Respond with only the label: 'github_agent', 'chat_agent', 'nl2sql_agent'."
     )
 
     try:
@@ -37,7 +38,7 @@ def route(state: GraphState) -> str:
             HumanMessage(content=last_user_msg)
         ])
         route_decision = classification.content.strip().lower()
-        if route_decision not in ["github_agent", "chat_agent", "leave_agent"]:
+        if route_decision not in ["github_agent", "chat_agent", "nl2sql_agent"]:
             route_decision = "chat_agent"
         return route_decision
     except Exception as e:
@@ -114,6 +115,21 @@ def github_agent(state: GraphState) -> GraphState:
 
     return {"messages": state["messages"] + [AIMessage(content=response_text)]}
 
+def nl2sql_agent(state: GraphState) -> GraphState:
+    user_msg = state["messages"][-1].content
+    try:
+        query = write_query(user_msg)
+        result = execute_query(query)
+        if isinstance(result, list):
+            result_str = "\n".join([str(row) for row in result])
+        else:
+            result_str = str(result)
+        answer = generate_answer(user_msg, query, result_str)
+        response = AIMessage(content=answer)
+    except Exception as e:
+        response = AIMessage(content=f"⚠️ Failed to process NL2SQL request: {e}")
+    return {"messages": state["messages"] + [response]}
+
 def summarize_conversation(messages: List[BaseMessage]) -> str:
     conversation_text = "\n".join([msg.content for msg in messages])
     summary_prompt = (
@@ -155,19 +171,19 @@ def load_checkpoint(thread_id):
 builder = StateGraph(GraphState)
 builder.add_node("chat_agent", chat_agent)
 builder.add_node("github_agent", github_agent)
-builder.add_node("leave_agent", github_agent)
+builder.add_node("nl2sql_agent", nl2sql_agent)
 builder.add_node("route", lambda x: x)
 
 builder.add_conditional_edges("route", route, {
     "chat_agent": "chat_agent",
     "github_agent": "github_agent",
-    "leave_agent": "leave_agent"
+    "nl2sql_agent": "nl2sql_agent"
 })
 
 builder.set_entry_point("route")
 builder.add_edge("chat_agent", END)
 builder.add_edge("github_agent", END)
-builder.add_edge("leave_agent", END)
+builder.add_edge("nl2sql_agent", END)
 
 try:
     graph = builder.compile()

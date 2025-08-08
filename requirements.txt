@@ -11,3 +11,5 @@ fpdf2
 langchain
 langchain-google-genai
 langgraph
+langchain-community
+psycopg2-binary

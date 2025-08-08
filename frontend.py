@@ -64,9 +64,11 @@ if st.session_state.state["messages"]:
         chat_lines.append(f"{role}: {msg.content}")
     chat_text = "\n".join(chat_lines)
 
-    st.download_button(
-        label="Download Chat History",
-        data=chat_text,
-        file_name="chat_history.txt",
-        mime="text/plain"
-    )
+    col1, col2, col3 = st.columns([5, 1, 2])
+    with col3:
+        st.download_button(
+            label="Download Chat History",
+            data=chat_text,
+            file_name="chat_history.txt",
+            mime="text/plain"
+        )
