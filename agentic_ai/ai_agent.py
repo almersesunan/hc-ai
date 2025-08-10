@@ -27,7 +27,7 @@ def route(state: GraphState) -> str:
     system_prompt = (
         "You are a routing assistant. Classify the user's message as either:\n"
         "- 'github_agent': if it is about repositories, pull requests, GitHub-related tasks\n"
-        "- 'chat_agent': for anything else (general conversation, non-Classify questions)\n"
+        "- 'chat_agent': for anything else (general conversation, non-classed questions)\n"
         "- 'nl2sql_agent': if it is about database, SQL, data analysis, or asking for data from a database\n"
         "Respond with only the label: 'github_agent', 'chat_agent', 'nl2sql_agent'."
     )
@@ -118,14 +118,34 @@ def github_agent(state: GraphState) -> GraphState:
 def nl2sql_agent(state: GraphState) -> GraphState:
     user_msg = state["messages"][-1].content
     try:
-        query = write_query(user_msg)
-        result = execute_query(query)
-        if isinstance(result, list):
-            result_str = "\n".join([str(row) for row in result])
+        # Classify intent
+        system_prompt = (
+            "You are an intent classifier for natural language to SQL tasks. "
+            "Classify the user's request as one of the following:\n"
+            "- 'select_query': if the user wants to retrieve data\n"
+            "- 'general_question': for anything else\n"
+            "Only output the label."
+        )
+        intent = llm.invoke([
+            HumanMessage(content=system_prompt),
+            HumanMessage(content=user_msg)
+        ]).content.strip()
+    except Exception as e:
+        return {"messages": state["messages"] + [AIMessage(content=f"Failed to classify NL2SQL intent: {e}")]}
+
+    try:
+        if intent == "select_query":
+            query = write_query(user_msg)
+            result = execute_query(query)
+            if isinstance(result, list):
+                result_str = "\n".join([str(row) for row in result])
+            else:
+                result_str = str(result)
+            answer = generate_answer(user_msg, query, result_str)
+            response = AIMessage(content=answer)
         else:
-            result_str = str(result)
-        answer = generate_answer(user_msg, query, result_str)
-        response = AIMessage(content=answer)
+            # For general questions, just use the LLM to answer
+            response = llm.invoke([HumanMessage(content=user_msg)])
     except Exception as e:
         response = AIMessage(content=f"⚠️ Failed to process NL2SQL request: {e}")
     return {"messages": state["messages"] + [response]}
