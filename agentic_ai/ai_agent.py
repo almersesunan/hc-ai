@@ -17,7 +17,7 @@ github_key = os.getenv("GITHUB_API_KEY")
 GITHUB_API_URL = "https://api.github.com"
 
 try:
-  llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=gemini_key)
+  llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=gemini_key,transport="rest")
 except Exception as e:
   raise ValueError(f"❌ Failed to initialize Gemini LLM: {e}")
   

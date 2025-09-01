@@ -11,8 +11,15 @@ python -m venv venv
 # Activate virtual environment
 venv\Scripts\activate
 
-# SSL issue on pip install (presumably only on venv):
+# open port 
+sudo ufw allow <port>/tcp
+
+# SSL Issue #1 on pip install (presumably only on venv):
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org <package to install>
 
-# SSL issue certificate on SerpAPI:
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pip-system-cert --use-feature=truststore
+# SSL Issue #2 certificate on SerpAPI:
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pip-system-certs --use-feature=truststore
+
+# SSL Issue #3 set param on GenAI Config
+set transport='rest'
+

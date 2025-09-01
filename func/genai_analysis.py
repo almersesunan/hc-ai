@@ -9,7 +9,7 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
 # Initialize the GeminiAPI
-genai.configure(api_key=api_key)
+genai.configure(api_key=api_key,transport="rest")
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 def analyze_candidate_skills(cv_text, job_pos):

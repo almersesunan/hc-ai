@@ -13,12 +13,16 @@ SQL_USER=os.getenv("SQL_USER")
 SQL_PORT=os.getenv("SQL_PORT")
 SQL_PASSWORD=os.getenv("SQL_PASSWORD")
 SQL_DB_NAME=os.getenv("SQL_DB_NAME")
+SQL_DIALECT=os.getenv("SQL_DIALECT")
 
 # Initialize the Gemini model
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=gemini_key)
+try:
+  llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=gemini_key,transport="rest")
+except Exception as e:
+  raise ValueError(f"❌ Failed to initialize Gemini LLM: {e}")
 
 # Connect to the Postgresql database
-connection_Uri = f"postgresql://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DB_NAME}"
+connection_Uri = f"{SQL_DIALECT}://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DB_NAME}"
 db = SQLDatabase.from_uri(connection_Uri)
     
 # Pull the SQL query prompt from LangChain Hub
@@ -38,7 +42,8 @@ def write_query(question: str):
 
     extraction_prompt = """
     NEVER execute any DML statement. Return error when user is trying any DML statement. 
-    Please extract the SQL query from the following text and return only the SQL query without any additional characters, wrapper or formatting:
+    Please extract the SQL query from the following text and return only the SQL query without any additional characters, wrapper or markdown/sql formatting.
+    Remove any leading or trailing text, and ensure the query is syntactically correct.
 
     {response}
 
